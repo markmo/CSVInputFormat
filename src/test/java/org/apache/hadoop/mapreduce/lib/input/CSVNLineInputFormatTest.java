@@ -18,12 +18,9 @@ package org.apache.hadoop.mapreduce.lib.input;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.InputSplit;
-import org.apache.hadoop.mapreduce.JobContext;
-import org.apache.hadoop.mapreduce.JobID;
-import org.apache.hadoop.mapreduce.RecordReader;
-import org.apache.hadoop.mapreduce.TaskAttemptContext;
-import org.apache.hadoop.mapreduce.TaskAttemptID;
+import org.apache.hadoop.mapreduce.*;
+import org.apache.hadoop.mapreduce.task.JobContextImpl;
+import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
 import org.junit.Test;
 
 import java.util.List;
@@ -35,10 +32,10 @@ public class CSVNLineInputFormatTest {
     @Test
     public void shouldReturnListsAsRecords() throws Exception {
         Configuration conf = createConfig();
-        TaskAttemptContext context = new TaskAttemptContext(conf, new TaskAttemptID());
+        TaskAttemptContext context = new TaskAttemptContextImpl(conf, new TaskAttemptID());
 
         CSVNLineInputFormat inputFormat = new CSVNLineInputFormat();
-        List<InputSplit> actualSplits = inputFormat.getSplits(new JobContext(conf, new JobID()));
+        List<InputSplit> actualSplits = inputFormat.getSplits(new JobContextImpl(conf, new JobID()));
         RecordReader<LongWritable, List<Text>> recordReader =
                 inputFormat.createRecordReader(actualSplits.get(0), context);
 

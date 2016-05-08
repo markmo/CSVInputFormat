@@ -1,5 +1,16 @@
-CSVInputFormat
-==============
+#  CSVInputFormat
+
+Adapted from https://github.com/mvallebr/CSVInputFormat.
+
+Protect against edge cases when processing splits that mess with the quote counting behaviour.
+
+Config:
+
+FORMAT_DELIMITER - quote character (")
+FORMAT_SEPARATOR - column delimiter (,)
+IS_ZIPFILE - (true)
+VALID_LINE_START_PATTERN - to determine if the split has been cut at the start of a valid record (e.g. "-?\d+,")
+EXPECTED_COLUMN_COUNT - expected number of columns in the record (to help determine above, e.g. 11)
 
 Input format for hadoop able to read multiline CSVs
 
@@ -9,10 +20,8 @@ The key returned is the file position where the line starts and the value is a L
 
 Zip files are supported.
 
-More ideas to improve this are welcome.
+## Example
 
-Example:
---------------------------------------------------------------------------------
 If we read this CSV (note that line 2 is multiline):
 
 	Joe Demo,"2 Demo Street,

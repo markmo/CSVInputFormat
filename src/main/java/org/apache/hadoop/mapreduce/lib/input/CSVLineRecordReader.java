@@ -27,13 +27,7 @@ import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.io.UnsupportedEncodingException;
+import java.io.*;
 import java.util.List;
 import java.util.zip.ZipInputStream;
 
@@ -48,9 +42,12 @@ public class CSVLineRecordReader extends RecordReader<LongWritable, List<Text>> 
 	public static final String FORMAT_DELIMITER = "mapreduce.csvinput.delimiter";
 	public static final String FORMAT_SEPARATOR = "mapreduce.csvinput.separator";
 	public static final String IS_ZIPFILE = "mapreduce.csvinput.zipfile";
+	public static final String VALID_LINE_START_PATTERN = "valid.line.start.pattern";
+	public static final String EXPECTED_COLUMN_COUNT = "expected.column.count";
 	public static final String DEFAULT_DELIMITER = "\"";
 	public static final String DEFAULT_SEPARATOR = ",";
 	public static final boolean DEFAULT_ZIP = true;
+	public static final int DEFAULT_COLUMN_COUNT = 11;
 
 	private CompressionCodecFactory compressionCodecs = null;
 	private long start;
@@ -63,6 +60,8 @@ public class CSVLineRecordReader extends RecordReader<LongWritable, List<Text>> 
 	private String separator;
 	private Boolean isZipFile;
 	private InputStream is;
+	private String validLineStartPattern;
+	private int expectedColumnCount;
 
 	/**
 	 * Default constructor is needed when called by reflection from hadoop
@@ -99,6 +98,8 @@ public class CSVLineRecordReader extends RecordReader<LongWritable, List<Text>> 
 		this.delimiter = conf.get(FORMAT_DELIMITER, DEFAULT_DELIMITER);
 		this.separator = conf.get(FORMAT_SEPARATOR, DEFAULT_SEPARATOR);
 		this.isZipFile = conf.getBoolean(IS_ZIPFILE, DEFAULT_ZIP);
+		this.validLineStartPattern = "^" + conf.get(VALID_LINE_START_PATTERN) + ".*";
+		this.expectedColumnCount = conf.getInt(EXPECTED_COLUMN_COUNT, DEFAULT_COLUMN_COUNT);
 		if (isZipFile) {
 			@SuppressWarnings("resource")
 			ZipInputStream zis = new ZipInputStream(new BufferedInputStream(is));
@@ -124,18 +125,32 @@ public class CSVLineRecordReader extends RecordReader<LongWritable, List<Text>> 
 		int numRead = 0;
 		boolean insideQuote = false;
 		StringBuffer sb = new StringBuffer();
+		StringBuffer line = new StringBuffer();
 		int i;
 		int quoteOffset = 0, delimiterOffset = 0;
+		boolean firstTest = true;
+		// this is becoming too much of a hack
+		int sepCount = 0;
 		// Reads each char from input stream unless eof was reached
 		while ((i = in.read()) != -1) {
 			c = (char) i;
 			numRead++;
 			sb.append(c);
+			if (firstTest) line.append(c);
 			// Check quotes, as delimiter inside quotes don't count
 			if (c == delimiter.charAt(quoteOffset)) {
 				quoteOffset++;
 				if (quoteOffset >= delimiter.length()) {
-					insideQuote = !insideQuote;
+					if (firstTest) {
+						if (line.toString().matches(validLineStartPattern) && sepCount < expectedColumnCount) {
+							insideQuote = !insideQuote;
+						}
+						firstTest = false;
+						line.setLength(0);
+						line = null;
+					} else {
+						insideQuote = !insideQuote;
+					}
 					quoteOffset = 0;
 				}
 			} else {
@@ -146,6 +161,7 @@ public class CSVLineRecordReader extends RecordReader<LongWritable, List<Text>> 
 				if (c == separator.charAt(delimiterOffset)) {
 					delimiterOffset++;
 					if (delimiterOffset >= separator.length()) {
+						sepCount++;
 						foundDelimiter(sb, values, true);
 						delimiterOffset = 0;
 					}
