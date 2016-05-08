@@ -6,11 +6,11 @@ Protect against edge cases when processing splits that mess with the quote count
 
 Config:
 
-FORMAT_DELIMITER - quote character (")
-FORMAT_SEPARATOR - column delimiter (,)
-IS_ZIPFILE - (true)
-VALID_LINE_START_PATTERN - to determine if the split has been cut at the start of a valid record (e.g. "-?\d+,")
-EXPECTED_COLUMN_COUNT - expected number of columns in the record (to help determine above, e.g. 11)
+* FORMAT_DELIMITER - quote character (")
+* FORMAT_SEPARATOR - column delimiter (,)
+* IS_ZIPFILE - (true)
+* VALID_LINE_START_PATTERN - to determine if the split has been cut at the start of a valid record (e.g. "-?\d+,")
+* EXPECTED_COLUMN_COUNT - expected number of columns in the record (to help determine above, e.g. 11)
 
 Input format for hadoop able to read multiline CSVs
 
