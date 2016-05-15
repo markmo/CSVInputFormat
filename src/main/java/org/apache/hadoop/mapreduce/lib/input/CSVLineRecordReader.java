@@ -31,6 +31,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.zip.ZipInputStream;
 
 /**
@@ -64,8 +66,9 @@ public class CSVLineRecordReader extends RecordReader<LongWritable, List<Text>> 
     private String separator;
     private Boolean isZipFile;
     private InputStream is;
-    private String validLineStartPattern;
+    private Pattern validLineStartPattern;
     private int expectedColumnCount;
+    private boolean testLine = true;
 
     /**
      * Default constructor is needed when called by reflection from hadoop
@@ -101,7 +104,7 @@ public class CSVLineRecordReader extends RecordReader<LongWritable, List<Text>> 
         this.delimiter = conf.get(FORMAT_DELIMITER, DEFAULT_DELIMITER);
         this.separator = conf.get(FORMAT_SEPARATOR, DEFAULT_SEPARATOR);
         this.isZipFile = conf.getBoolean(IS_ZIPFILE, DEFAULT_ZIP);
-        this.validLineStartPattern = "^" + conf.get(VALID_LINE_START_PATTERN) + ".*";
+        this.validLineStartPattern = Pattern.compile("^" + conf.get(VALID_LINE_START_PATTERN));
         this.expectedColumnCount = conf.getInt(EXPECTED_COLUMN_COUNT, DEFAULT_COLUMN_COUNT);
         if (isZipFile) {
             @SuppressWarnings("resource")
@@ -131,7 +134,6 @@ public class CSVLineRecordReader extends RecordReader<LongWritable, List<Text>> 
         StringBuilder line = new StringBuilder();
         int i;
         int quoteOffset = 0, delimiterOffset = 0;
-        boolean testLine = true;
         int sepCount = 0;
         int expectedSepCount = expectedColumnCount - 1;
 
@@ -145,8 +147,10 @@ public class CSVLineRecordReader extends RecordReader<LongWritable, List<Text>> 
             if (c == delimiter.charAt(quoteOffset)) {
                 quoteOffset++;
                 if (quoteOffset >= delimiter.length()) {
+                    //System.out.print(insideQuote ? ']' : '[');
                     if (testLine) {
-                        if (line.toString().matches(validLineStartPattern)) {
+                        Matcher matcher = validLineStartPattern.matcher(line.toString());
+                        if (matcher.find()) {
                             insideQuote = !insideQuote;
                         }
                     } else {
@@ -163,6 +167,7 @@ public class CSVLineRecordReader extends RecordReader<LongWritable, List<Text>> 
                     delimiterOffset++;
                     if (delimiterOffset >= separator.length()) {
                         sepCount++;
+                        //System.out.print('.');
                         foundDelimiter(sb, values, true);
                         delimiterOffset = 0;
                     }
@@ -171,17 +176,26 @@ public class CSVLineRecordReader extends RecordReader<LongWritable, List<Text>> 
                 }
                 // A new line outside of a quote is a real csv line breaker
                 if (c == '\n') {
+                    //System.out.print("\\n");
                     if (testLine) {
-                        if (line.toString().matches(validLineStartPattern) && sepCount == expectedSepCount) {
+                        //System.out.println();
+                        //System.out.println(line);
+                        //System.out.println(validLineStartPattern);
+                        //System.out.println("sepCount: " + sepCount + " = " + expectedSepCount + " is " + (sepCount == expectedSepCount));
+                        Matcher matcher = validLineStartPattern.matcher(line.toString());
+                        if (matcher.find() && sepCount == expectedSepCount) {
                             testLine = false;
                             break;
                         }
                     } else {
-                        if (sepCount == expectedColumnCount - 1) {
+                        //System.out.println();
+                        //System.out.println("sepCount: " + sepCount + " = " + expectedSepCount + " is " + (sepCount == expectedSepCount));
+                        if (sepCount == expectedSepCount) {
                             testLine = false;
                             break;
                         }
                     }
+                    //System.out.println("<reset>");
                     // start a new record, try again
                     values.clear();
                     numRead = 0;
@@ -199,6 +213,7 @@ public class CSVLineRecordReader extends RecordReader<LongWritable, List<Text>> 
                 insideQuote = false;
             }
         }
+        //System.out.println("<end>");
         foundDelimiter(sb, values, false);
 
         // test whether the last record has been split
