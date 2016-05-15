@@ -131,11 +131,12 @@ public class CSVLineRecordReader extends RecordReader<LongWritable, List<Text>> 
         int numRead = 0;
         boolean insideQuote = false;
         StringBuffer sb = new StringBuffer();
-        StringBuilder line = new StringBuilder();
+        StringBuffer line = new StringBuffer();
         int i;
         int quoteOffset = 0, delimiterOffset = 0;
         int sepCount = 0;
         int expectedSepCount = expectedColumnCount - 1;
+        boolean isValid = true;
 
         // Reads each char from input stream unless eof was reached
         while ((i = in.read()) != -1) {
@@ -152,8 +153,12 @@ public class CSVLineRecordReader extends RecordReader<LongWritable, List<Text>> 
                         Matcher matcher = validLineStartPattern.matcher(line.toString());
                         if (matcher.find()) {
                             insideQuote = !insideQuote;
+                        } else {
+                            isValid = false;
+                            logger.debug("quote, invalid start of record:\n" + line);
                         }
-                    } else {
+                        testLine = false;
+                    } else if (isValid) {
                         insideQuote = !insideQuote;
                     }
                     quoteOffset = 0;
@@ -187,6 +192,7 @@ public class CSVLineRecordReader extends RecordReader<LongWritable, List<Text>> 
                             testLine = false;
                             break;
                         }
+                        logger.debug("newline, invalid start of record:\n" + line);
                     } else {
                         //System.out.println();
                         //System.out.println("sepCount: " + sepCount + " = " + expectedSepCount + " is " + (sepCount == expectedSepCount));
@@ -205,12 +211,9 @@ public class CSVLineRecordReader extends RecordReader<LongWritable, List<Text>> 
                     quoteOffset = 0;
                     delimiterOffset = 0;
                     sepCount = 0;
+                    testLine = true;
+                    isValid = true;
                 }
-            }
-            // failsafe
-            if (sepCount > expectedSepCount) {
-                testLine = true;
-                insideQuote = false;
             }
         }
         //System.out.println("<end>");
@@ -218,7 +221,7 @@ public class CSVLineRecordReader extends RecordReader<LongWritable, List<Text>> 
 
         // test whether the last record has been split
         if (sepCount != expectedSepCount) {
-            logger.warn("Invalid last record:\n" + join(values));
+            logger.debug("Invalid last record:\n" + join(values));
             values.clear();
             numRead--;
         }
@@ -226,7 +229,7 @@ public class CSVLineRecordReader extends RecordReader<LongWritable, List<Text>> 
     }
 
     private String join(List<Text> values) {
-        StringBuilder sb = new StringBuilder("[");
+        StringBuffer sb = new StringBuffer("[");
         for (Text value : values) {
             sb.append(value).append("|~|");
         }
