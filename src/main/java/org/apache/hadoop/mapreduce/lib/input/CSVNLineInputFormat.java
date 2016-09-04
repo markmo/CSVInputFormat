@@ -147,7 +147,7 @@ public class CSVNLineInputFormat extends FileInputFormat<LongWritable, List<Text
      */
     @Override
     protected boolean isSplitable(JobContext context, Path filename) {
-        return true;
+        return false;
     }
 
     /**
